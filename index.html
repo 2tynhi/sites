@@ -208,7 +208,7 @@
             { id: 69, name: "bellsprout", types: ["grass", "poison"] },
             { id: 70, name: "weepinbell", types: ["grass", "poison"] },
             { id: 71, name: "victreebel", types: ["grass", "poison"] },
-            { id: 72, text: "tentacool", types: ["water", "poison"] },
+            { id: 72, name: "tentacool", types: ["water", "poison"] },
             { id: 73, name: "tentacruel", types: ["water", "poison"] },
             { id: 74, name: "geodude", types: ["rock", "ground"] },
             { id: 75, name: "graveler", types: ["rock", "ground"] },
@@ -497,7 +497,7 @@
 
             const filteredPokemon = useMemo(() => {
                 return pokemonList.filter(pokemon => {
-                    const matchesSearch = pokemon.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    const matchesSearch = (pokemon.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
                                          pokemon.id.toString() === searchQuery.trim();
                     
                     const gen = GENERATIONS.find(g => g.num === selectedGeneration);
@@ -626,4 +626,798 @@
                                     <button 
                                         onClick={fetchEntireDatabase}
                                         disabled={isLoadingFullDb}
-                                        class="w-full md:w-auto bg-yellow-400 hover:bg-yellow-300 disabled:bg-slate-300 text-slate-900 font-bold px-5 py-2.5 rounded-lg shadow-md transition duration-200 flex items-center justify-center gap-2 text-sm border-b-4 border-yellow-600 active
+                                        class="w-full md:w-auto bg-yellow-400 hover:bg-yellow-300 disabled:bg-slate-300 text-slate-900 font-bold px-5 py-2.5 rounded-lg shadow-md transition duration-200 flex items-center justify-center gap-2 text-sm border-b-4 border-yellow-600 active:border-b-0 cursor-pointer"
+                                    >
+                                        <i data-lucide="cloud-download" class="w-4 h-4 pointer-events-none"></i>
+                                        {isLoadingFullDb ? `Downloading DB (${dbProgress.current}/1025)...` : "Unlock Gen 2 - Gen 9 Database"}
+                                    </button>
+                                ) : (
+                                    <span class="bg-emerald-500/20 text-emerald-100 border border-emerald-500 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 select-none">
+                                        <span class="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
+                                        All 1,025 Pokémon Database Loaded
+                                    </span>
+                                )}
+                                
+                                <button
+                                    onClick={handlePrint}
+                                    className="w-full md:w-auto bg-slate-900 hover:bg-slate-950 text-white font-extrabold px-6 py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all text-sm cursor-pointer relative z-50 select-none border border-slate-800"
+                                >
+                                    <i data-lucide="printer" class="w-4 h-4 text-emerald-400 animate-pulse pointer-events-none"></i>
+                                    <span class="pointer-events-none">Print Selected ({selectedPokemonIds.size})</span>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Progress indicator for database fetching */}
+                    {isLoadingFullDb && (
+                        <div class="no-print bg-yellow-500/10 border-b border-yellow-500/20 py-2 px-4 text-center relative z-30">
+                            <div class="max-w-xl mx-auto flex items-center gap-3">
+                                <span class="text-xs font-bold text-yellow-700 animate-pulse flex-shrink-0">Syncing with PokéAPI Database:</span>
+                                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-yellow-500 h-2 transition-all duration-300" style={{ width: `${(dbProgress.current / 1025) * 100}%` }}></div>
+                                </div>
+                                <span class="text-xs font-bold text-slate-600">{Math.round((dbProgress.current / 1025) * 100)}%</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTAINER */}
+                    <div class="flex-1 max-w-8xl w-full mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
+                        
+                        {/* LEFT COLUMN: INTERACTIVE CONTROLLER (no-print) */}
+                        <aside class="no-print w-full lg:w-[400px] flex flex-col gap-6 flex-shrink-0">
+                            
+                            {/* PRESSETS & CHOOSE CARDS */}
+                            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                                <h2 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2 border-b pb-2">
+                                    <i data-lucide="grid" class="w-4 h-4 text-pokeRed"></i>
+                                    1. Choose Pokémon ({selectedPokemonIds.size} Selected)
+                                </h2>
+
+                                {/* Custom Selection Panel */}
+                                <div class="mb-4">
+                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filter by Generation</label>
+                                    <div class="grid grid-cols-3 gap-1.5">
+                                        {GENERATIONS.map(gen => (
+                                            <button
+                                                key={gen.num}
+                                                onClick={() => setSelectedGeneration(gen.num)}
+                                                class={`px-2.5 py-1.5 rounded-lg text-xs font-medium text-center transition-all ${
+                                                    selectedGeneration === gen.num 
+                                                        ? 'bg-pokeBlue text-white shadow-sm font-bold' 
+                                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                                }`}
+                                            >
+                                                Gen {gen.num}
+                                                {gen.num > 1 && !isAllLoaded && " 🔒"}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Dynamic select triggers */}
+                                <div class="flex flex-col gap-2 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                    <span class="text-xs font-semibold text-slate-600">Bulk Select in Gen {selectedGeneration}:</span>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button 
+                                            onClick={() => selectGeneration(selectedGeneration)}
+                                            class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs py-1.5 px-3 rounded-md font-medium transition flex items-center justify-center gap-1.5"
+                                        >
+                                            <i data-lucide="check-square" class="w-3.5 h-3.5 text-emerald-500"></i>
+                                            Select All Gen {selectedGeneration}
+                                        </button>
+                                        <button 
+                                            onClick={() => deselectGeneration(selectedGeneration)}
+                                            class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs py-1.5 px-3 rounded-md font-medium transition flex items-center justify-center gap-1.5"
+                                        >
+                                            <i data-lucide="square" class="w-3.5 h-3.5 text-red-500"></i>
+                                            Clear Gen {selectedGeneration}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Search Bar */}
+                                <div class="relative mb-3">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name or ID (e.g., 25)..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        class="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pokeBlue focus:border-pokeBlue bg-white transition"
+                                    />
+                                </div>
+
+                                {/* Quick selection toggler list */}
+                                <div class="max-h-[220px] overflow-y-auto border border-slate-200 rounded-lg bg-white divide-y divide-slate-100">
+                                    {filteredPokemon.length === 0 ? (
+                                        <div class="p-4 text-center text-xs text-slate-400">
+                                            No Pokémon found. Ensure the generation is correct or unlock all generations.
+                                        </div>
+                                    ) : (
+                                        filteredPokemon.map(pokemon => {
+                                            const isSelected = selectedPokemonIds.has(pokemon.id);
+                                            return (
+                                                <div 
+                                                    key={pokemon.id}
+                                                    onClick={() => toggleSelect(pokemon.id)}
+                                                    class={`flex items-center justify-between p-2 cursor-pointer transition hover:bg-slate-50 ${
+                                                        isSelected ? 'bg-indigo-50/60' : ''
+                                                    }`}
+                                                >
+                                                    <div class="flex items-center gap-2">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={isSelected}
+                                                            onChange={() => {}} 
+                                                            class="rounded text-pokeBlue focus:ring-pokeBlue cursor-pointer"
+                                                        />
+                                                        <img 
+                                                            src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`}
+                                                            alt={pokemon.name || ""}
+                                                            class="w-8 h-8 object-contain"
+                                                            onError={(e) => { e.target.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png' }}
+                                                        />
+                                                        <span class="text-xs font-bold text-slate-400">#{String(pokemon.id).padStart(3, '0')}</span>
+                                                        <span class="text-xs font-bold capitalize text-slate-700">{pokemon.name || ""}</span>
+                                                    </div>
+                                                    <div class="flex gap-1">
+                                                        {pokemon.types.map(t => (
+                                                            <span key={t} class={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full ${`type-${t}`}`}>
+                                                                {t}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                <div class="mt-2.5 flex justify-between items-center text-[11px] text-slate-500">
+                                    <span>Showing {filteredPokemon.length} matching list</span>
+                                    <div class="flex gap-2">
+                                        <button 
+                                            onClick={() => selectAllVisible(filteredPokemon)} 
+                                            class="text-pokeBlue hover:underline font-semibold"
+                                        >
+                                            Select Visible
+                                        </button>
+                                        <span>|</span>
+                                        <button 
+                                            onClick={() => deselectAllVisible(filteredPokemon)} 
+                                            class="text-red-500 hover:underline font-semibold"
+                                        >
+                                            Deselect Visible
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* CARD STYLE SETTINGS PANEL */}
+                            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-4">
+                                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 border-b pb-2">
+                                    <i data-lucide="sliders" class="w-4 h-4 text-pokeBlue"></i>
+                                    2. Card Styling Settings
+                                </h2>
+
+                                {/* Title control */}
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">Print Sheet Custom Title</label>
+                                    <div class="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={customTitle}
+                                            onChange={(e) => setCustomTitle(e.target.value)}
+                                            class="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-md focus:outline-none"
+                                            placeholder="Collection Title"
+                                        />
+                                        <button
+                                            onClick={() => setShowSheetHeader(!showSheetHeader)}
+                                            class={`px-2 py-2 rounded border text-xs font-bold ${showSheetHeader ? 'bg-emerald-50 text-emerald-600 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                                            title="Toggle header on printed sheets"
+                                        >
+                                            {showSheetHeader ? "Header On" : "Header Off"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Card Spacing / Cutting Gaps */}
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">Card Spacing (For Cutting)</label>
+                                    <div class="grid grid-cols-2 gap-1.5 text-xs">
+                                        <button
+                                            onClick={() => setSeamlessGrid(false)}
+                                            class={`py-1.5 rounded border font-semibold ${!seamlessGrid ? "border-pokeBlue bg-indigo-50 text-pokeBlue font-bold shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                        >
+                                            Spaced (Clean)
+                                        </button>
+                                        <button
+                                            onClick={() => setSeamlessGrid(true)}
+                                            class={`py-1.5 rounded border font-semibold ${seamlessGrid ? "border-pokeBlue bg-indigo-50 text-pokeBlue font-bold shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                            title="Tightly packs all cards edge-to-edge. No white gaps between borders!"
+                                        >
+                                            Seamless Grid
+                                        </button>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1">
+                                        {seamlessGrid 
+                                            ? "✓ Locked: Gaps eliminated. Adjacent card borders touch perfectly side-by-side." 
+                                            : "✓ Spaced: Cards distributed evenly to fill the page, leaving standard cutting boundaries."}
+                                    </p>
+                                </div>
+
+                                {/* Card Dimensions & Shape Presets */}
+                                <div class="border-t pt-3">
+                                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Card Dimensions Preset</label>
+                                    <div class="grid grid-cols-2 gap-1.5 text-xs mb-3">
+                                        <button
+                                            onClick={() => setCardShape("mini-portrait")}
+                                            class={`p-2 rounded border text-left flex flex-col justify-between ${cardShape === "mini-portrait" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                        >
+                                            <span class="font-bold">Mini Portrait</span>
+                                            <span class="text-[9px] text-slate-500 font-normal mt-0.5">6.0cm x 7.6cm</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCardShape("square")}
+                                            class={`p-2 rounded border text-left flex flex-col justify-between ${cardShape === "square" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                        >
+                                            <span class="font-bold">Square (1:1)</span>
+                                            <span class="text-[9px] text-slate-500 font-normal mt-0.5">Custom Square</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCardShape("standard-tcg")}
+                                            class={`p-2 rounded border text-left flex flex-col justify-between ${cardShape === "standard-tcg" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                        >
+                                            <span class="font-bold">Standard TCG</span>
+                                            <span class="text-[9px] text-slate-500 font-normal mt-0.5">6.35cm x 8.89cm</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCardShape("custom")}
+                                            class={`p-2 rounded border text-left flex flex-col justify-between ${cardShape === "custom" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                        >
+                                            <span class="font-bold">Custom Dimensions</span>
+                                            <span class="text-[9px] text-slate-500 font-normal mt-0.5">Free Scaling sliders</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Expose corresponding sliders based on shape selection */}
+                                    {cardShape === "square" && (
+                                        <div>
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="text-xs font-bold text-slate-600">Square Card Size</span>
+                                                <span class="text-xs font-extrabold text-pokeBlue">{customWidthCm}cm x {customWidthCm}cm</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="2.5"
+                                                max="9.0"
+                                                step="0.1"
+                                                value={customWidthCm}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value);
+                                                    setCustomWidthCm(val);
+                                                    setCustomHeightCm(val);
+                                                }}
+                                                class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pokeBlue"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {cardShape === "custom" && (
+                                        <div class="space-y-3">
+                                            <div>
+                                                <div class="flex justify-between items-center mb-1">
+                                                    <span class="text-xs font-bold text-slate-600">Card Width (cm)</span>
+                                                    <span class="text-xs font-extrabold text-pokeBlue">{customWidthCm}cm</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="2.5"
+                                                    max="9.0"
+                                                    step="0.1"
+                                                    value={customWidthCm}
+                                                    onChange={(e) => setCustomWidthCm(parseFloat(e.target.value))}
+                                                    class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pokeBlue"
+                                                />
+                                            </div>
+                                            <div>
+                                                <div class="flex justify-between items-center mb-1">
+                                                    <span class="text-xs font-bold text-slate-600">Card Height (cm)</span>
+                                                    <span class="text-xs font-extrabold text-pokeBlue">{customHeightCm}cm</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="2.5"
+                                                    max="10.0"
+                                                    step="0.1"
+                                                    value={customHeightCm}
+                                                    onChange={(e) => setCustomHeightCm(parseFloat(e.target.value))}
+                                                    class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pokeBlue"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Auto-scaling warning system to inform the user */}
+                                    {scaleFactor < 1 && (
+                                        <div class="mt-3 text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 flex items-start gap-1.5">
+                                            <i data-lucide="info" class="w-3.5 h-3.5 mt-0.5 text-amber-500 flex-shrink-0"></i>
+                                            <span>
+                                                <strong>Auto-Scaled to fit:</strong> Grid items scaled down to <strong>{scaledCardDimensions.width.toFixed(2)}cm x {scaledCardDimensions.height.toFixed(2)}cm</strong> ({Math.round(scaleFactor * 100)}%) to fit A4 print sheet margins.
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Grid Format */}
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Columns</label>
+                                        <select
+                                            value={gridCols}
+                                            onChange={(e) => setGridCols(Number(e.target.value))}
+                                            class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md bg-white"
+                                        >
+                                            <option value={2}>2 Columns</option>
+                                            <option value={3}>3 Columns</option>
+                                            <option value={4}>4 Columns (Default)</option>
+                                            <option value={5}>5 Columns</option>
+                                            <option value={6}>6 Columns</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Rows per sheet</label>
+                                        <select
+                                            value={gridRows}
+                                            onChange={(e) => setGridRows(Number(e.target.value))}
+                                            class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md bg-white"
+                                        >
+                                            <option value={2}>2 Rows</option>
+                                            <option value={3}>3 Rows</option>
+                                            <option value={4}>4 Rows (Default)</option>
+                                            <option value={5}>5 Rows</option>
+                                            <option value={6}>6 Rows</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Card Templates */}
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">Card Layout Template</label>
+                                    <div class="grid grid-cols-2 gap-1.5 text-xs">
+                                        <button
+                                            onClick={() => setCardStyle("badge-styled")}
+                                            class={`p-2 rounded border text-left flex flex-col gap-0.5 ${cardStyle === "badge-styled" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200"}`}
+                                        >
+                                            <span>Compact Card</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Badges + ID info</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCardStyle("borderless-image")}
+                                            class={`p-2 rounded border text-left flex flex-col gap-0.5 ${cardStyle === "borderless-image" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200"}`}
+                                        >
+                                            <span>Image Only</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Full-bleed clean art</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCardStyle("classic-retro")}
+                                            class={`p-2 rounded border text-left flex flex-col gap-0.5 ${cardStyle === "classic-retro" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200"}`}
+                                        >
+                                            <span>Classic retro</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Gradient background</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCardStyle("polaroid")}
+                                            class={`p-2 rounded border text-left flex flex-col gap-0.5 ${cardStyle === "polaroid" ? "border-pokeBlue bg-indigo-50/50 font-bold text-pokeBlue shadow-sm" : "border-slate-200"}`}
+                                        >
+                                            <span>Polaroid frame</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Retro hand-written</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Cutting Lines helper */}
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">Cutting Guides Border Style</label>
+                                    <div class="grid grid-cols-4 gap-1.5 text-xs text-center">
+                                        {['none', 'solid', 'dashed', 'dotted'].map(b => (
+                                            <button
+                                                key={b}
+                                                onClick={() => setBorderStyle(b)}
+                                                class={`py-1.5 capitalize rounded border ${borderStyle === b ? "border-pokeBlue bg-indigo-50 text-pokeBlue font-bold shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
+                                            >
+                                                {b}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Toggle optional parts */}
+                                <div class="space-y-2 border-t pt-3">
+                                    <span class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Toggle Metadata visibility</span>
+                                    
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs text-slate-600">Show Dex ID (#001)</span>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={showId} 
+                                            onChange={(e) => setShowId(e.target.checked)}
+                                            class="rounded text-pokeBlue"
+                                        />
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs text-slate-600">Show Pokémon Name</span>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={showName} 
+                                            onChange={(e) => setShowName(e.target.checked)}
+                                            class="rounded text-pokeBlue"
+                                        />
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs text-slate-600">Show Type Badges</span>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={showTypes} 
+                                            onChange={(e) => setShowTypes(e.target.checked)}
+                                            class="rounded text-pokeBlue"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* USER HELPER CARD */}
+                            <div class="bg-indigo-900 text-indigo-100 rounded-xl p-5 shadow-lg border border-indigo-950">
+                                <h3 class="text-sm font-bold flex items-center gap-2 text-yellow-400 mb-2">
+                                    <i data-lucide="printer" class="w-4 h-4 animate-bounce"></i>
+                                    Pro-Print Instructions
+                                </h3>
+                                <ul class="text-[11px] leading-relaxed space-y-2 text-indigo-200 list-disc list-inside">
+                                    <li>Standard A4 Paper is set for <strong>Portrait orientation</strong>.</li>
+                                    <li>In the browser's print dialog, set <strong>Margins to "None"</strong> or "Minimum" to maximize printable area.</li>
+                                    <li>Enable <strong>"Background graphics"</strong> to show colored badges or retro borders.</li>
+                                    <li>Use thick cardstock or photo sticker paper for highly professional results.</li>
+                                </ul>
+                            </div>
+                        </aside>
+
+                        {/* RIGHT COLUMN: PREVIEW OF REAL-TIME PRINT CANVASES */}
+                        <main class="flex-1 flex flex-col gap-4">
+                            
+                            {/* PREVIEW TOOLBAR Controls */}
+                            <div class="no-print bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-bold text-slate-700">A4 Print Sheets Preview</span>
+                                    <span class="text-xs font-semibold bg-indigo-50 text-pokeBlue px-2 py-1 rounded-full border border-indigo-100">
+                                        {paginatedPokemonPages.length} {paginatedPokemonPages.length === 1 ? 'Page' : 'Pages'} required
+                                    </span>
+                                </div>
+
+                                {/* Sheet Scaling Control for Screen visibility */}
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-500 font-medium">Preview Scale:</span>
+                                    <button 
+                                        onClick={() => setPageScale(Math.max(30, pageScale - 10))}
+                                        class="p-1 rounded bg-slate-100 hover:bg-slate-200 border text-slate-600"
+                                        title="Zoom Out"
+                                    >
+                                        <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <span class="text-xs font-bold text-slate-600 w-10 text-center">{pageScale}%</span>
+                                    <button 
+                                        onClick={() => setPageScale(Math.min(100, pageScale + 10))}
+                                        class="p-1 rounded bg-slate-100 hover:bg-slate-200 border text-slate-600"
+                                        title="Zoom In"
+                                    >
+                                        <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* BLOCKED VIEW IF NO POKEMON SELECTED */}
+                            {selectedPokemonObjects.length === 0 ? (
+                                <div class="no-print flex-1 flex flex-col items-center justify-center p-12 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-center gap-4">
+                                    <div class="bg-rose-50 p-4 rounded-full text-pokeRed">
+                                        <i data-lucide="ghost" class="w-12 h-12"></i>
+                                    </div>
+                                    <div class="max-w-md">
+                                        <h3 class="text-lg font-bold text-slate-800">No Pokémon Selected for Print</h3>
+                                        <p class="text-xs text-slate-500 mt-2">Use the selection panel on the left to add Pokémon to your sheet. You can select single cards or complete generations with one click!</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedPokemonIds(new Set(GEN_1_POKEMON.slice(0, 16).map(p => p.id)))}
+                                        class="bg-pokeBlue text-white font-bold text-xs px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                                    >
+                                        Select First 16 Pokémon
+                                    </button>
+                                </div>
+                            ) : (
+                                /* PRINT SHEETS RENDER CONTAINER */
+                                <div class="flex flex-col gap-8 items-center justify-start overflow-x-auto py-4">
+                                    {paginatedPokemonPages.map((pagePokemonList, pageIndex) => (
+                                        <div 
+                                            key={pageIndex}
+                                            class="a4-print-page a4-preview-sheet shadow-2xl relative flex flex-col justify-between"
+                                            style={{
+                                                transform: `scale(${pageScale / 100})`,
+                                                transformOrigin: 'top center',
+                                                marginBottom: `${(pageScale / 100 - 1) * 297}mm` 
+                                            }}
+                                        >
+                                            
+                                            {/* PAGE BORDER INDICATOR */}
+                                            <div class="no-print absolute top-0 left-0 right-0 py-1 px-4 bg-slate-800 text-white text-[10px] flex justify-between items-center select-none z-50">
+                                                <span class="font-bold flex items-center gap-1">
+                                                    <i data-lucide="printer" class="w-3 h-3 text-yellow-400"></i>
+                                                    Print Page {pageIndex + 1} of {paginatedPokemonPages.length}
+                                                </span>
+                                                <span class="text-slate-400">Standard A4 Portrait Sheet</span>
+                                            </div>
+
+                                            {/* Optional Printed Page Header */}
+                                            {showSheetHeader && (
+                                                <div class="mb-4 pb-2 border-b-2 border-slate-300 flex justify-between items-end flex-shrink-0 text-slate-800">
+                                                    <div>
+                                                        <h1 class="text-sm font-extrabold capitalize tracking-tight leading-none">{customTitle}</h1>
+                                                        <p class="text-[9px] text-slate-400 mt-1">Generated by Pokeprint A4 Engine • Sheet {pageIndex + 1}/{paginatedPokemonPages.length}</p>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <span class="text-[10px] font-bold text-slate-500">Total Cards: {selectedPokemonObjects.length}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* CARDS GRID SYSTEM (With absolute centering on sheet) */}
+                                            <div class="flex-grow flex items-center justify-center w-full min-h-0 overflow-hidden">
+                                                <div 
+                                                    className="justify-center items-center"
+                                                    style={seamlessGrid ? {
+                                                        display: 'grid',
+                                                        gridTemplateColumns: `repeat(${gridCols}, ${scaledCardDimensions.width}cm)`,
+                                                        gridTemplateRows: `repeat(${gridRows}, ${scaledCardDimensions.height}cm)`,
+                                                        gap: '0px',
+                                                        margin: '0 auto',
+                                                    } : {
+                                                        display: 'grid',
+                                                        gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
+                                                        gridTemplateRows: `repeat(${gridRows}, minmax(0, 1fr))`,
+                                                        gap: '16px',
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        alignContent: 'center',
+                                                        justifyContent: 'center',
+                                                    }}
+                                                >
+                                                    {pagePokemonList.map((pokemon) => {
+                                                        // Thin crisp border boundaries so cards touch clean
+                                                        const bWidth = seamlessGrid ? 'border-[0.5px]' : 'border';
+                                                        const cardBorderClass = 
+                                                            borderStyle === 'solid' ? `${bWidth} border-slate-300` :
+                                                            borderStyle === 'dashed' ? `${bWidth} border-dashed border-slate-400` :
+                                                            borderStyle === 'dotted' ? `${bWidth} border-dotted border-slate-400` : '';
+
+                                                        return (
+                                                            <div
+                                                                key={pokemon.id}
+                                                                className={`pokemon-card flex flex-col relative bg-white overflow-hidden justify-self-center self-center ${cardBorderClass}`}
+                                                                style={seamlessGrid ? {
+                                                                    width: `${scaledCardDimensions.width}cm`,
+                                                                    height: `${scaledCardDimensions.height}cm`,
+                                                                } : {
+                                                                    width: `min(${cardDimensions.width}cm, 100%)`,
+                                                                    height: 'auto',
+                                                                    maxHeight: '100%',
+                                                                    aspectRatio: `${cardDimensions.width} / ${cardDimensions.height}`,
+                                                                }}
+                                                            >
+                                                                {/* CARD RENDER STYLE 1: Compact/Badge */}
+                                                                {cardStyle === 'badge-styled' && (
+                                                                    <div class="w-full h-full flex flex-col justify-between p-2">
+                                                                        {/* Bound height to strict 15% */}
+                                                                        <div class="h-[15%] flex-shrink-0 flex items-center justify-between">
+                                                                            {showId && (
+                                                                                <span class="text-[9px] font-black text-slate-400">
+                                                                                    #{String(pokemon.id).padStart(3, '0')}
+                                                                                </span>
+                                                                            )}
+                                                                            <span class={`w-2.5 h-2.5 rounded-full ${`type-${pokemon.types[0]}`}`}></span>
+                                                                        </div>
+
+                                                                        {/* Bound height to strict 55% to stop overflowing */}
+                                                                        <div class="h-[55%] w-full flex-shrink-0 flex items-center justify-center p-0.5 overflow-hidden">
+                                                                            <img 
+                                                                                src={getPokemonImageUrl(pokemon.id)}
+                                                                                alt={pokemon.name || ""}
+                                                                                class="max-w-full max-h-full object-contain filter drop-shadow-sm"
+                                                                                loading="lazy"
+                                                                                onError={(e) => { e.target.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png` }}
+                                                                            />
+                                                                        </div>
+
+                                                                        {/* Bound height to strict 25% */}
+                                                                        <div class="h-[25%] flex-shrink-0 flex flex-col justify-end text-center mt-0.5">
+                                                                            {showName && (
+                                                                                <h4 class="text-[11px] font-bold capitalize text-slate-800 leading-tight truncate">
+                                                                                    {pokemon.name || ""}
+                                                                                </h4>
+                                                                            )}
+                                                                            {showTypes && (
+                                                                                <div class="flex justify-center gap-1 mt-1">
+                                                                                    {pokemon.types.map(t => (
+                                                                                        <span key={t} class={`text-[7px] font-extrabold uppercase px-1 rounded ${`type-${t}`}`}>
+                                                                                            {t}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* CARD RENDER STYLE 2: Image Only */}
+                                                                {cardStyle === 'borderless-image' && (
+                                                                    <div class="w-full h-full flex flex-col items-center justify-between p-2 relative">
+                                                                        {showId && (
+                                                                            <span class="absolute top-1.5 left-1.5 text-[8px] font-black text-slate-300">
+                                                                                #{String(pokemon.id).padStart(3, '0')}
+                                                                            </span>
+                                                                        )}
+                                                                        <div class="h-[80%] w-full flex items-center justify-center overflow-hidden">
+                                                                            <img 
+                                                                                src={getPokemonImageUrl(pokemon.id)}
+                                                                                alt={pokemon.name || ""}
+                                                                                class="max-w-full max-h-full object-contain filter drop-shadow"
+                                                                                loading="lazy"
+                                                                                onError={(e) => { e.target.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png` }}
+                                                                            />
+                                                                        </div>
+                                                                        {showName && (
+                                                                            <div class="h-[15%] flex items-center justify-center w-full">
+                                                                                <span class="bg-white/95 px-1.5 py-0.5 rounded shadow-sm text-[9px] font-bold capitalize text-slate-800 border truncate max-w-[95%]">
+                                                                                    {pokemon.name || ""}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* CARD RENDER STYLE 3: Classic Retro */}
+                                                                {cardStyle === 'classic-retro' && (
+                                                                    <div class="w-full h-full flex flex-col justify-between p-1.5 bg-slate-50 border-4 border-amber-300 rounded-md">
+                                                                        {/* Bound height to 15% */}
+                                                                        <div class="h-[15%] flex-shrink-0 flex justify-between items-center bg-slate-900 text-white px-1.5 py-0.5 rounded text-[8px] font-bold">
+                                                                            <span class="capitalize truncate max-w-[75%]">
+                                                                                {showName ? (pokemon.name || "") : `Pokemon`}
+                                                                            </span>
+                                                                            <span>#{pokemon.id}</span>
+                                                                        </div>
+
+                                                                        {/* Bound height to 65% */}
+                                                                        <div class="h-[65%] w-full my-0.5 bg-gradient-to-tr from-slate-100 to-indigo-50 border border-amber-200 rounded flex items-center justify-center overflow-hidden">
+                                                                            <img 
+                                                                                src={getPokemonImageUrl(pokemon.id)}
+                                                                                alt={pokemon.name || ""}
+                                                                                class="max-w-[90%] max-h-[90%] object-contain"
+                                                                                loading="lazy"
+                                                                                onError={(e) => { e.target.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png` }}
+                                                                            />
+                                                                        </div>
+
+                                                                        {/* Bound height to 12% */}
+                                                                        <div class="h-[12%] flex-shrink-0 flex justify-between items-center text-[7px] font-semibold text-slate-500">
+                                                                            <span>National Pokédex</span>
+                                                                            <span class="uppercase font-bold text-slate-800">{pokemon.types.join('/')}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* CARD RENDER STYLE 4: Polaroid */}
+                                                                {cardStyle === 'polaroid' && (
+                                                                    <div class="w-full h-full flex flex-col justify-between p-2 pb-3 bg-white shadow-sm">
+                                                                        {/* Bound height to 70% */}
+                                                                        <div class="h-[70%] w-full bg-slate-100 border border-slate-200 flex items-center justify-center p-1 overflow-hidden">
+                                                                            <img 
+                                                                                src={getPokemonImageUrl(pokemon.id)}
+                                                                                alt={pokemon.name || ""}
+                                                                                class="max-w-full max-h-full object-contain"
+                                                                                loading="lazy"
+                                                                                onError={(e) => { e.target.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png` }}
+                                                                            />
+                                                                        </div>
+                                                                        
+                                                                        {/* Bound height to 20% */}
+                                                                        <div class="h-[20%] mt-1.5 flex items-center justify-center text-center">
+                                                                            <h4 class="font-bold text-[10px] capitalize tracking-wide text-slate-800" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                                                                                {showName ? (pokemon.name || "") : ''} {showId && `(id: ${pokemon.id})`}
+                                                                            </h4>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </main>
+                        
+                    </div>
+
+                    {/* POPUP BLOCKED CUSTOM MODAL */}
+                    {showPopupModal && (
+                        <div class="no-print fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div class="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+                                <div class="flex items-start gap-4">
+                                    <div class="bg-rose-100 p-3 rounded-full text-rose-600 flex-shrink-0">
+                                        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h3 class="text-lg font-bold text-slate-900">Browser Popup Blocked!</h3>
+                                        <p class="text-sm text-slate-600 mt-2">
+                                            Because this workspace runs in a sandboxed viewer, we open a clean new tab to process high-resolution prints. Your browser blocked this tab.
+                                        </p>
+                                        
+                                        <div class="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-3">
+                                            <p class="font-bold text-slate-950">To Print your Pokémon Sheets:</p>
+                                            <ol class="list-decimal list-inside space-y-1.5">
+                                                <li>Look at the right side of your browser's address bar for a **Popup Blocked** icon (<i data-lucide="external-link" class="w-3.5 h-3.5 inline"></i>).</li>
+                                                <li>Click it and select **"Always allow popups from this site"**.</li>
+                                                <li>Click the **Print Selected** button again!</li>
+                                            </ol>
+                                            <div class="border-t pt-2.5 mt-1">
+                                                <p class="font-bold text-slate-950 mb-1">💡 Manual Alternative Shortcut:</p>
+                                                <p>Click anywhere on the preview pages, then press <kbd class="px-1.5 py-0.5 bg-slate-200 rounded border border-slate-300 font-mono text-[10px] shadow-sm font-bold">Ctrl + P</kbd> (or <kbd class="px-1.5 py-0.5 bg-slate-200 rounded border border-slate-300 font-mono text-[10px] shadow-sm font-bold">Cmd + P</kbd> on Mac) to print directly.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-6 flex justify-end gap-3">
+                                            <button 
+                                                onClick={() => setShowPopupModal(false)}
+                                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition"
+                                            >
+                                                Close
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    setShowPopupModal(false);
+                                                    handlePrint();
+                                                }}
+                                                class="px-4 py-2 bg-pokeBlue hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition"
+                                            >
+                                                Try Again
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* DYNAMIC ICON LOADERS */}
+                    <span class="hidden"><i data-lucide="cloud-download"></i><i data-lucide="printer"></i><i data-lucide="grid"></i><i data-lucide="sliders"></i><i data-lucide="search"></i><i data-lucide="check-square"></i><i data-lucide="square"></i><i data-lucide="zoom-out"></i><i data-lucide="zoom-in"></i><i data-lucide="ghost"></i><i data-lucide="alert-triangle"></i><i data-lucide="external-link"></i><i data-lucide="info"></i></span>
+
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
