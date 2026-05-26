@@ -1167,9 +1167,14 @@
                                                             <div
                                                                 key={pokemon.id}
                                                                 className={`pokemon-card flex flex-col relative bg-white overflow-hidden justify-self-center self-center ${cardBorderClass}`}
-                                                                style={{
+                                                                style={seamlessGrid ? {
                                                                     width: `${cardDimensions.width}cm`,
                                                                     height: `${cardDimensions.height}cm`,
+                                                                } : {
+                                                                    width: `min(${cardDimensions.width}cm, 100%)`,
+                                                                    height: 'auto',
+                                                                    maxHeight: '100%',
+                                                                    aspectRatio: `${cardDimensions.width} / ${cardDimensions.height}`,
                                                                 }}
                                                             >
                                                                 {/* CARD RENDER STYLE 1: Compact/Badge */}
